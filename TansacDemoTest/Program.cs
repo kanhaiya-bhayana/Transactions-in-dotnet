@@ -1,4 +1,6 @@
-﻿using System.Data.SqlClient;
+﻿using System.Data;
+using System.Data.SqlClient;
+using System.Reflection.Metadata;
 
 namespace TransacDemoTest
 {
@@ -22,43 +24,47 @@ namespace TransacDemoTest
             }
         }
 
+        
+
         private static void MoneyTransfer()
         {
-            //Store the connection string in a variable
             string ConnectionString = @"Data Source=OCTOCAT\SQLEXPRESS;Initial Catalog=BankDB;Integrated Security=True";
-
-            //Creating the connection object
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {
-                //Open the connection
-                //The connection needs to be open before we begin a transaction
                 connection.Open();
-
-                // Create the transaction object by calling the BeginTransaction method on connection object
-                SqlTransaction transaction = connection.BeginTransaction();
-
-                try
+                
+                using (SqlCommand cmd = new SqlCommand("InsertRecords", connection))
                 {
-                    // Associate the first update command with the transaction
-                    SqlCommand cmd = new SqlCommand("UPDATE Accounts SET Balance = Balance - 500 WHERE AccountNumber = 'Account1'", connection, transaction);
-                    //Execute the First Update Command
-                    cmd.ExecuteNonQuery();
 
-                    // Associate the second update command with the transaction
-                    cmd = new SqlCommand("UPDATE MyAccounts SET Balance = Balance + 500 WHERE AccountNumber = 'Account2'", connection, transaction);
-                    //Execute the Second Update Command
-                    cmd.ExecuteNonQuery();
+                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@accNo", "Account9");
+                    cmd.Parameters.AddWithValue("@custName", "Adam");
+                    cmd.Parameters.AddWithValue("@balance", 10000);
+                    SqlTransaction transaction = connection.BeginTransaction();
+                    try
+                    {
+                        cmd.Transaction = transaction;
+                            using (SqlDataReader reader = cmd.ExecuteReader()) 
+                            {    
+                                if (reader.Read())
+                                {
+                                    Console.WriteLine("AccountNumber: "+reader.GetString(0) + 
+                                        " CustomerName: "+reader.GetString(1) + " Balance: "+reader.GetInt32(2));
+                                }
+                            }
 
-                    // If everythinhg goes well then commit the transaction
-                    transaction.Commit();
-                    Console.WriteLine("Transaction Committed");
+                    
+                        
+                            transaction.Commit();
+                            Console.WriteLine("Transaction Committed");
+                    }
+                    catch (Exception EX)
+                    {
+                        transaction.Rollback();
+                        Console.WriteLine("Transaction Rollback");
+                    }
                 }
-                catch (Exception EX)
-                {
-                    // If anything goes wrong, then Rollback the transaction
-                    transaction.Rollback();
-                    Console.WriteLine("Transaction Rollback");
-                }
+                
             }
         }
 
@@ -67,16 +73,16 @@ namespace TransacDemoTest
             string connectionString = "Data Source=OCTOCAT\\SQLEXPRESS;Initial Catalog=BankDB;Integrated Security=True";
             try
             {
-                Console.WriteLine("Before Transaction");
-                GetAccountsData();
+               /* Console.WriteLine("Before Transaction");
+                GetAccountsData();*/
 
                 //Doing the Transaction
                 MoneyTransfer();
 
                 //Verifying the Data After Transaction
-                Console.WriteLine("After Transaction");
+                /*Console.WriteLine("After Transaction");
 
-                GetAccountsData();
+                GetAccountsData();*/
             }
             catch (Exception ex)
             {
